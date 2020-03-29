@@ -1,3 +1,4 @@
 # testing and debugging files
-a.out
+*.out
+*.exe
 *.txt
