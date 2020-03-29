@@ -12,6 +12,7 @@ using std::cout;
 using std::make_pair;
 using std::pair;
 using std::queue;
+using std::deque;
 using std::vector;
 using std::string;
 using std::unordered_set;
@@ -25,20 +26,36 @@ public:
             for(int j=0; j<mp[i].size(); j++) {
                 if(mp[i][j] == 'o' || mp[i][j] == 'O') {
                     pos = pair<int,int>(i,j);
-                    goto afp;
+                }
+                if(mp[i][j] == 'x' || mp[i][j] == 'X') {
+                    boxes.push_back(pair<int,int>(i,j));
+                }
+                if(mp[i][j] == '.' || mp[i][j] == 'O' || mp[i][j] == 'X') {
+                    targets.push_back(pair<int,int>(i,j));
                 }
             }
         }
-        afp: return; // after finding position
     }
-    State(string mv, pair<int,int> p, vector<string> mp): moves(mv), pos(p), map(mp) {}
+    State(string mv, pair<int,int> p, vector<string> mp, bool bm) : moves(mv), pos(p), map(mp), boxmove(bm) {
+        for(int i=0; i<mp.size(); i++) {
+            for(int j=0; j<mp[i].size(); j++) {
+                if(mp[i][j] == 'x' || mp[i][j] == 'X') {
+                    boxes.push_back(pair<int,int>(i,j));
+                }
+            }
+        }
+    }
     string moves{""};
     pair<int,int> pos;
+    vector<pair<int,int>> boxes;
+    vector<pair<int,int>> targets;
     vector<string> map;
+    bool boxmove = false;
 };
 
-queue<State> bfsqueue;
+deque<State> bfsqueue;
 unordered_set<vector<string>, hash<vector<string>>> hashtable;
+
 
 bool checkwin(const State& now)
 {
@@ -47,6 +64,77 @@ bool checkwin(const State& now)
             if(ch == '.' || ch == 'x' || ch == 'O') return false;
         }
     }
+    return true;
+}
+
+bool checkmapvalid(const State& now)
+{
+    // print out the map
+    // for(auto line: now.map){
+    //     cout << line << '\n';
+    // }
+    // cout << '\n';
+    for(auto x: now.boxes) {
+        int i = x.first, j = x.second;
+        // cout << i << ' ' << j << '\n';
+        if(now.map[i][j] == 'X') continue;
+        int vertical = 0, horizon = 0;
+        if(now.map[i-1][j] == '#') {
+            horizon++;
+            for(int jj=0; jj<now.map[i-1].size(); jj++) {
+                if(now.map[i-1][jj] != '#') goto checkdown;
+            }
+            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') return false;
+            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') return false;
+            for(int jj=0; jj<now.map[i].size(); jj++) {
+                if(now.map[i][jj] == '.' || now.map[i][jj] == 'O') goto checkdown;
+            }
+            return false;
+        }
+        checkdown:
+        if(now.map[i+1][j] == '#') {
+            horizon++;
+            for(int jj=0; jj<now.map[i+1].size(); jj++) {
+                if(now.map[i+1][jj] != '#') goto checkleft;
+            }
+            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') return false;
+            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') return false;
+            for(int jj=0; jj<now.map[i].size(); jj++) {
+                if(now.map[i][jj] == '.' || now.map[i][jj] == 'O') goto checkleft;
+            }
+            return false;
+        }
+        checkleft:
+        if(now.map[i][j-1] == '#') {
+            vertical++;
+            for(int ii=0; ii<now.map.size(); ii++) {
+                if(now.map[ii][j-1] != '#') goto checkright;
+            }
+            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') return false;
+            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') return false;
+            for(int ii=0; ii<now.map.size(); ii++) {
+                if(now.map[ii][j] == '.' || now.map[ii][j] == 'O') goto checkright;
+            }
+            return false;
+        }
+        checkright:
+        if(now.map[i][j+1] == '#') {
+            vertical++;
+            for(int ii=0; ii<now.map.size(); ii++) {
+                if(now.map[ii][j+1] != '#') goto checknext;
+            }
+            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') return false;
+            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') return false;
+            for(int ii=0; ii<now.map.size(); ii++) {
+                if(now.map[ii][j] == '.' || now.map[ii][j] == 'O') goto checknext;
+            }
+            return false;
+        }
+        checknext:
+        if(horizon > 0 && vertical > 0) return false;
+        continue;
+    }
+    // cout << "true\n";
     return true;
 }
 
@@ -93,6 +181,7 @@ State move(const State& now, const char dir)
     vector<string> map = now.map;
     int i = now.pos.first, j = now.pos.second;
     int ii, jj;
+    bool boxmove = false;
 
     if(dir == 'W') {
         ii = i-1; jj = j;
@@ -113,6 +202,7 @@ State move(const State& now, const char dir)
                 map[i-1][j] = 'O';
             }
         } else if(now.map[i-1][j] == 'x') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i-2][j] == ' ') {
                     map[i-2][j] = 'x';
@@ -135,6 +225,7 @@ State move(const State& now, const char dir)
                 }            
             }
         } else if(now.map[i-1][j] == 'X') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i-2][j] == ' ') {
                     map[i-2][j] = 'x';
@@ -179,6 +270,7 @@ State move(const State& now, const char dir)
                 map[i][j-1] = 'O';
             }
         } else if(now.map[i][j-1] == 'x') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i][j-2] == ' ') {
                     map[i][j-2] = 'x';
@@ -201,6 +293,7 @@ State move(const State& now, const char dir)
                 }            
             }
         } else if(now.map[i][j-1] == 'X') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i][j-2] == ' ') {
                     map[i][j-2] = 'x';
@@ -245,6 +338,7 @@ State move(const State& now, const char dir)
                 map[i+1][j] = 'O';
             }
         } else if(now.map[i+1][j] == 'x') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i+2][j] == ' ') {
                     map[i+2][j] = 'x';
@@ -267,6 +361,7 @@ State move(const State& now, const char dir)
                 }            
             }
         } else if(now.map[i+1][j] == 'X') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i+2][j] == ' ') {
                     map[i+2][j] = 'x';
@@ -311,6 +406,7 @@ State move(const State& now, const char dir)
                 map[i][j+1] = 'O';
             }
         } else if(now.map[i][j+1] == 'x') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i][j+2] == ' ') {
                     map[i][j+2] = 'x';
@@ -333,6 +429,7 @@ State move(const State& now, const char dir)
                 }            
             }
         } else if(now.map[i][j+1] == 'X') {
+            boxmove = true;
             if(now.map[i][j] == 'o') {
                 if(now.map[i][j+2] == ' ') {
                     map[i][j+2] = 'x';
@@ -360,7 +457,7 @@ State move(const State& now, const char dir)
         }
     }
 
-    return State(now.moves + dir, pair<int,int>(ii, jj), map);
+    return State(now.moves + dir, pair<int,int>(ii, jj), map, boxmove);
 }
 
 void findans()
@@ -372,23 +469,57 @@ void findans()
             exit(-1);
         }
         now = bfsqueue.front();
-        bfsqueue.pop();
+        bfsqueue.pop_front();
     } while(hashtable.count(now.map) == 1);
     
     hashtable.insert(now.map);
     // cout << hashtable.size() << '\n';
 
+    // print out the map
+    // for(auto line: now.map){
+    //     cout << line << '\n';
+    // }
+    // cout << '\n';
+
     //printf("%s\n", now.moves.c_str());
     if(checkwin(now)) {
         printf("%s\n", now.moves.c_str());
-        queue<State>().swap(bfsqueue);
+        deque<State>().swap(bfsqueue);
         return;
     }
 
-    if(checkmovevalid(now, 'W')) bfsqueue.push(move(now,'W'));
-    if(checkmovevalid(now, 'A')) bfsqueue.push(move(now,'A'));
-    if(checkmovevalid(now, 'S')) bfsqueue.push(move(now,'S'));
-    if(checkmovevalid(now, 'D')) bfsqueue.push(move(now,'D'));
+    State ww, aa, ss, dd;
+
+    if(checkmovevalid(now, 'W')) {
+        ww = (move(now,'W'));
+        if(checkmapvalid(ww)) {
+            if(ww.boxmove) bfsqueue.push_back(ww);
+            else bfsqueue.push_front(ww);
+        }
+    }
+    if(checkmovevalid(now, 'A')) {
+        aa = (move(now,'A'));
+        if(checkmapvalid(aa)) {
+            if(aa.boxmove) bfsqueue.push_back(aa);
+            else bfsqueue.push_front(aa);
+        }
+    }
+    if(checkmovevalid(now, 'S')) {
+        ss = (move(now,'S'));
+        if(checkmapvalid(ss)) {
+            if(ss.boxmove) bfsqueue.push_back(ss);
+            else bfsqueue.push_front(ss);
+        }
+    }
+    if(checkmovevalid(now, 'D')) {
+        dd = (move(now,'D'));
+        if(checkmapvalid(dd)) {
+            if(dd.boxmove) bfsqueue.push_back(dd);
+            else bfsqueue.push_front(dd);
+        }
+    }
+
+    return;
 
 }
 
@@ -423,7 +554,7 @@ int main(int argc, char** argv)
     //     cout << line << '\n';
     // }
 
-    bfsqueue.push(State(map));
+    bfsqueue.push_back(State(map));
     // cout << bfsqueue.front().pos.first << ' ' << bfsqueue.front().pos.second << '\n';
     
     while(!bfsqueue.empty()) {
