@@ -7,11 +7,12 @@
 #include<string>
 #include<unordered_set>
 #include<boost/container_hash/hash.hpp> // boost::hash
+#include "tbb/concurrent_queue.h" // concurrent_queue
 
 using std::cout;
 using std::make_pair;
 using std::pair;
-using std::queue;
+using tbb::concurrent_queue;
 using std::deque;
 using std::vector;
 using std::string;
@@ -53,7 +54,8 @@ public:
     bool boxmove = false;
 };
 
-deque<State> bfsqueue;
+concurrent_queue<State> nomovequeue; //no box moves
+concurrent_queue<State> bfsqueue;
 unordered_set<vector<string>, hash<vector<string>>> hashtable;
 
 
@@ -134,7 +136,7 @@ bool checkmapvalid(const State& now)
         if(horizon > 0 && vertical > 0) return false;
         continue;
     }
-    // cout << "true\n";
+    //cout << "true\n";
     return true;
 }
 
@@ -463,13 +465,65 @@ State move(const State& now, const char dir)
 void findans()
 {
     State now;
-    do{ 
-        if(bfsqueue.empty()) {
-            fprintf(stderr, "Error: can't find solution!!\n");
-            exit(-1);
+    // cout << "Start handling nomove\n";
+    #pragma omp parallel private(now) shared(nomovequeue)
+    {
+    while(!nomovequeue.empty()) {
+        if(!nomovequeue.try_pop(now)) break;
+        if(hashtable.count(now.map) == 1) continue;
+        #pragma omp critical
+        {
+            hashtable.insert(now.map);
         }
-        now = bfsqueue.front();
-        bfsqueue.pop_front();
+        
+
+        // print out the map
+        // for(auto line: now.map){
+        //     cout << line << '\n';
+        // }
+        // cout << "**\n";
+
+        State ww, aa, ss, dd;
+        if(checkmovevalid(now, 'W')) {
+            ww = (move(now,'W'));
+            if(checkmapvalid(ww)) {
+                if(ww.boxmove) bfsqueue.push(ww);
+                else nomovequeue.push(ww);
+            }
+        }
+        if(checkmovevalid(now, 'A')) {
+            aa = (move(now,'A'));
+            if(checkmapvalid(aa)) {
+                if(aa.boxmove) bfsqueue.push(aa);
+                else nomovequeue.push(aa);
+            }
+        }
+        if(checkmovevalid(now, 'S')) {
+            ss = (move(now,'S'));
+            if(checkmapvalid(ss)) {
+                if(ss.boxmove) bfsqueue.push(ss);
+                else nomovequeue.push(ss);
+            }
+        }
+        if(checkmovevalid(now, 'D')) {
+            dd = (move(now,'D'));
+            if(checkmapvalid(dd)) {
+                if(dd.boxmove) bfsqueue.push(dd);
+                else nomovequeue.push(dd);
+            }
+        }
+    }
+    }
+    // cout << "Finish nomove\n";
+
+    do{ 
+        if(!bfsqueue.try_pop(now)) {
+            // fprintf(stderr, "Error: can't find solution!!\n");
+            // exit(-1);
+            return;
+        }
+        // now = bfsqueue.front();
+        // bfsqueue.pop_front();
     } while(hashtable.count(now.map) == 1);
     
     hashtable.insert(now.map);
@@ -484,38 +538,54 @@ void findans()
     //printf("%s\n", now.moves.c_str());
     if(checkwin(now)) {
         printf("%s\n", now.moves.c_str());
-        deque<State>().swap(bfsqueue);
+        bfsqueue.clear();
+        nomovequeue.clear();
         return;
     }
 
     State ww, aa, ss, dd;
 
-    if(checkmovevalid(now, 'W')) {
-        ww = (move(now,'W'));
-        if(checkmapvalid(ww)) {
-            if(ww.boxmove) bfsqueue.push_back(ww);
-            else bfsqueue.push_front(ww);
+    #pragma omp parallel sections shared(bfsqueue, nomovequeue)
+    {
+        #pragma omp section
+        {
+            if(checkmovevalid(now, 'W')) {
+                ww = (move(now,'W'));
+                if(checkmapvalid(ww)) {
+                    if(ww.boxmove) bfsqueue.push(ww);
+                    else nomovequeue.push(ww);
+                }
+            }
         }
-    }
-    if(checkmovevalid(now, 'A')) {
-        aa = (move(now,'A'));
-        if(checkmapvalid(aa)) {
-            if(aa.boxmove) bfsqueue.push_back(aa);
-            else bfsqueue.push_front(aa);
+        #pragma omp section
+        {
+            if(checkmovevalid(now, 'A')) {
+                aa = (move(now,'A'));
+                if(checkmapvalid(aa)) {
+                    if(aa.boxmove) bfsqueue.push(aa);
+                    else nomovequeue.push(aa);
+                }
+            }
         }
-    }
-    if(checkmovevalid(now, 'S')) {
-        ss = (move(now,'S'));
-        if(checkmapvalid(ss)) {
-            if(ss.boxmove) bfsqueue.push_back(ss);
-            else bfsqueue.push_front(ss);
+        #pragma omp section
+        {
+            if(checkmovevalid(now, 'S')) {
+                ss = (move(now,'S'));
+                if(checkmapvalid(ss)) {
+                    if(ss.boxmove) bfsqueue.push(ss);
+                    else nomovequeue.push(ss);
+                }
+            }
         }
-    }
-    if(checkmovevalid(now, 'D')) {
-        dd = (move(now,'D'));
-        if(checkmapvalid(dd)) {
-            if(dd.boxmove) bfsqueue.push_back(dd);
-            else bfsqueue.push_front(dd);
+        #pragma omp section
+        {
+            if(checkmovevalid(now, 'D')) {
+                dd = (move(now,'D'));
+                if(checkmapvalid(dd)) {
+                    if(dd.boxmove) bfsqueue.push(dd);
+                    else nomovequeue.push(dd);
+                }
+            }
         }
     }
 
@@ -554,10 +624,10 @@ int main(int argc, char** argv)
     //     cout << line << '\n';
     // }
 
-    bfsqueue.push_back(State(map));
+    bfsqueue.push(State(map));
     // cout << bfsqueue.front().pos.first << ' ' << bfsqueue.front().pos.second << '\n';
     
-    while(!bfsqueue.empty()) {
+    while(!bfsqueue.empty() || !nomovequeue.empty()) {
         findans();
     }
 
