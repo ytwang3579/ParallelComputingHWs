@@ -1,19 +1,17 @@
 #include<cstdio>
 #include<cstdlib>
-#include<iostream>
 #include<utility> // std::pair
 #include<vector>
-#include<queue>
 #include<string>
 #include<unordered_set>
 #include<boost/container_hash/hash.hpp> // boost::hash
 #include "tbb/concurrent_queue.h" // concurrent_queue
+#include "tbb/concurrent_priority_queue.h" // concurrent_priority_queue
 
-using std::cout;
-using std::make_pair;
+using std::abs;
 using std::pair;
 using tbb::concurrent_queue;
-using std::deque;
+using tbb::concurrent_priority_queue;
 using std::vector;
 using std::string;
 using std::unordered_set;
@@ -23,7 +21,9 @@ struct State {
 public:
     State() {};
     State(vector<string> mp): map(mp) {
+        //#pragma omp parallel for
         for(int i=0; i<mp.size(); i++) {
+            //#pragma omp parallel for
             for(int j=0; j<mp[i].size(); j++) {
                 if(mp[i][j] == 'o' || mp[i][j] == 'O') {
                     pos = pair<int,int>(i,j);
@@ -36,31 +36,65 @@ public:
                 }
             }
         }
+        //#pragma omp parallel for
+        for(auto x: targets) {
+            int tari = x.first, tarj = x.second;
+            if(map[tari][tarj] == 'X') continue;
+            //#pragma omp parallel for
+            for(auto box: boxes) {
+                int boxi = box.first, boxj = box.second;
+                if(map[boxi][boxj] == 'X') continue;
+                goaldistance += (abs(tari-boxi) + abs(tarj-boxj));
+            }
+        }
     }
     State(string mv, pair<int,int> p, vector<string> mp, bool bm) : moves(mv), pos(p), map(mp), boxmove(bm) {
+        //#pragma omp parallel for
         for(int i=0; i<mp.size(); i++) {
+            //#pragma omp parallel for
             for(int j=0; j<mp[i].size(); j++) {
                 if(mp[i][j] == 'x' || mp[i][j] == 'X') {
                     boxes.push_back(pair<int,int>(i,j));
                 }
+                if(mp[i][j] == '.' || mp[i][j] == 'O') {
+                    targets.push_back(pair<int,int>(i,j));
+                }
+            }
+        }
+        //#pragma omp parallel for
+        for(auto x: targets) {
+            int tari = x.first, tarj = x.second;
+            //#pragma omp parallel for
+            for(auto box: boxes) {
+                int boxi = box.first, boxj = box.second;
+                if(map[boxi][boxj] == 'X') continue;
+                goaldistance += (abs(tari-boxi) + abs(tarj-boxj));
             }
         }
     }
+    
     string moves{""};
     pair<int,int> pos;
     vector<pair<int,int>> boxes;
     vector<pair<int,int>> targets;
     vector<string> map;
+    int goaldistance = 0;
     bool boxmove = false;
 };
 
+bool operator<(const State& s1, const State& s2) 
+{ 
+    return s1.goaldistance > s2.goaldistance; 
+} 
+
 concurrent_queue<pair<int,int>> pullqueue;
 concurrent_queue<State> nomovequeue; //no box moves
-concurrent_queue<State> bfsqueue;
+concurrent_priority_queue<State> bfsqueue;
 unordered_set<vector<string>, hash<vector<string>>> hashtable;
 vector<string> initmap;
 vector<string> deadmap; // '0' for deadsquare
 string ans;
+bool finish = false;
 
 bool bfspull(int i, int j, int dir)
 {
@@ -128,16 +162,22 @@ bool checkwin(const State& now)
 
 bool checkmapvalid(const State& now)
 {
-    // print out the map
-    // for(auto line: now.map){
-    //     cout << line << '\n';
-    // }
-    // cout << '\n';
+    int pi = now.pos.first, pj = now.pos.second;
+
     bool flag = true;
     #pragma omp parallel for
     for(auto x: now.boxes) {
+        if(flag == false) continue;
         int i = x.first, j = x.second;
-        // cout << i << ' ' << j << '\n';
+
+        if((now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') &&
+        (now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') &&
+        (now.map[i+1][j+1] == 'x' || now.map[i+1][j+1] == 'X')) {
+            if(now.map[i][j] == 'x') flag = false;
+            else if(now.map[i+1][j] == 'x') flag = false;
+            else if(now.map[i][j+1] == 'x') flag = false;
+            else if(now.map[i+1][j+1] == 'x') flag = false;
+        } 
         if(now.map[i][j] == 'X') continue;
         if(deadmap[i][j] == '0') flag = false;
         int vertical = 0, horizon = 0;
@@ -196,7 +236,7 @@ bool checkmapvalid(const State& now)
         if(horizon > 0 && vertical > 0) flag = false;
         continue;
     }
-    //cout << "true\n";
+
     return flag;
 }
 
@@ -239,7 +279,7 @@ bool checkmovevalid(const State& now, const char dir)
 }
 
 State move(const State& now, const char dir)
-{
+{   
     vector<string> map = now.map;
     int i = now.pos.first, j = now.pos.second;
     int ii, jj;
@@ -525,7 +565,7 @@ State move(const State& now, const char dir)
 void findans()
 {
     State now;
-    // cout << "Start handling nomove\n";
+
     #pragma omp parallel private(now) shared(nomovequeue)
     {
     while(!nomovequeue.empty()) {
@@ -535,13 +575,6 @@ void findans()
         {
             hashtable.insert(now.map);
         }
-        
-
-        // print out the map
-        // for(auto line: now.map){
-        //     cout << line << '\n';
-        // }
-        // cout << "**\n";
 
         State ww, aa, ss, dd;
         if(checkmovevalid(now, 'W')) {
@@ -574,16 +607,12 @@ void findans()
         }
     }
     }
-    // cout << "Finish nomove\n";
 
+    
     do{ 
         if(!bfsqueue.try_pop(now)) {
-            // fprintf(stderr, "Error: can't find solution!!\n");
-            // exit(-1);
             return;
         }
-        // now = bfsqueue.front();
-        // bfsqueue.pop_front();
     } while(hashtable.count(now.map) == 1);
     
     #pragma omp critical
@@ -591,26 +620,16 @@ void findans()
         hashtable.insert(now.map);
     }
     
-    // cout << hashtable.size() << '\n';
-
-    // print out the map
-    // for(auto line: now.map){
-    //     cout << line << '\n';
-    // }
-    // cout << '\n';
-
-    //printf("%s\n", now.moves.c_str());
     if(checkwin(now)) {
         #pragma omp critical
         {
-            ans = now.moves;    
+            ans = now.moves;  
+            finish = true;
         }
-        
-        bfsqueue.clear();
-        nomovequeue.clear();
         return;
     }
 
+    if(finish) return;
     State ww, aa, ss, dd;
 
     #pragma omp parallel sections shared(bfsqueue, nomovequeue)
@@ -676,7 +695,6 @@ int main(int argc, char** argv)
     }
 
     // start parsing input
-    // vector<string> map;
     char ch;
     while((ch = fgetc(input)) != EOF) {
         string line;
@@ -690,20 +708,11 @@ int main(int argc, char** argv)
         deadmap.push_back(deadline);
     }
 
-    // print out the map
-    // for(auto line: map){
-    //     cout << line << '\n';
-    // }
     State init(initmap);
     builddeadmap(init);
 
-    // print out the map
-    // for(auto line: deadmap){
-    //     cout << line << '\n';
-    // }
-
     bfsqueue.push(init);
-    // cout << bfsqueue.front().pos.first << ' ' << bfsqueue.front().pos.second << '\n';
+
     #pragma omp parallel
     while(!bfsqueue.empty() || !nomovequeue.empty()) {
         findans();
