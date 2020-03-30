@@ -54,10 +54,67 @@ public:
     bool boxmove = false;
 };
 
+concurrent_queue<pair<int,int>> pullqueue;
 concurrent_queue<State> nomovequeue; //no box moves
 concurrent_queue<State> bfsqueue;
 unordered_set<vector<string>, hash<vector<string>>> hashtable;
+vector<string> initmap;
+vector<string> deadmap; // '0' for deadsquare
+string ans;
 
+bool bfspull(int i, int j, int dir)
+{
+    if(dir == 0) {
+        if(initmap[i-1][j] != '#') {
+            deadmap[i][j] = '1';
+            return true;
+        }
+    } else if(dir == 1) {
+        if(initmap[i][j-1] != '#') {
+            deadmap[i][j] = '1';
+            return true;
+        }
+    } else if(dir == 2) {
+        if(initmap[i+1][j] != '#') {
+            deadmap[i][j] = '1';
+            return true;
+        }
+    } else if(dir == 3) {
+        if(initmap[i][j+1] != '#') {
+            deadmap[i][j] = '1';
+            return true;
+        }
+    }
+    return false;
+}
+
+void builddeadmap(const State& init)
+{
+    #pragma omp parallel for
+    for(auto x: init.targets) {
+        int i = x.first, j = x.second;
+        deadmap[i][j] = '1';
+
+        pullqueue.push(pair<int,int>(i,j));
+        
+        pair<int,int> now;
+        #pragma omp parallel private(now, i, j)
+        {
+        while(!pullqueue.empty()) {
+            
+            pullqueue.try_pop(now);
+
+            i = now.first; j = now.second;
+            if(initmap[i-1][j] != '#' && deadmap[i-1][j] == '0') if(bfspull(i-1, j, 0)) pullqueue.push(pair<int,int>(i-1,j));
+            if(initmap[i][j-1] != '#' && deadmap[i][j-1] == '0') if(bfspull(i, j-1, 1)) pullqueue.push(pair<int,int>(i,j-1));
+            if(initmap[i+1][j] != '#' && deadmap[i+1][j] == '0') if(bfspull(i+1, j, 2)) pullqueue.push(pair<int,int>(i+1,j));
+            if(initmap[i][j+1] != '#' && deadmap[i][j+1] == '0') if(bfspull(i, j+1, 3)) pullqueue.push(pair<int,int>(i,j+1));
+
+        }
+        }
+
+    }
+}
 
 bool checkwin(const State& now)
 {
@@ -76,22 +133,25 @@ bool checkmapvalid(const State& now)
     //     cout << line << '\n';
     // }
     // cout << '\n';
+    bool flag = true;
+    #pragma omp parallel for
     for(auto x: now.boxes) {
         int i = x.first, j = x.second;
         // cout << i << ' ' << j << '\n';
         if(now.map[i][j] == 'X') continue;
+        if(deadmap[i][j] == '0') flag = false;
         int vertical = 0, horizon = 0;
         if(now.map[i-1][j] == '#') {
             horizon++;
             for(int jj=0; jj<now.map[i-1].size(); jj++) {
                 if(now.map[i-1][jj] != '#') goto checkdown;
             }
-            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') return false;
-            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') return false;
+            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') flag = false;
+            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') flag = false;
             for(int jj=0; jj<now.map[i].size(); jj++) {
                 if(now.map[i][jj] == '.' || now.map[i][jj] == 'O') goto checkdown;
             }
-            return false;
+            flag = false;
         }
         checkdown:
         if(now.map[i+1][j] == '#') {
@@ -99,12 +159,12 @@ bool checkmapvalid(const State& now)
             for(int jj=0; jj<now.map[i+1].size(); jj++) {
                 if(now.map[i+1][jj] != '#') goto checkleft;
             }
-            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') return false;
-            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') return false;
+            if(now.map[i][j-1] == 'x' || now.map[i][j-1] == 'X') flag = false;
+            if(now.map[i][j+1] == 'x' || now.map[i][j+1] == 'X') flag = false;
             for(int jj=0; jj<now.map[i].size(); jj++) {
                 if(now.map[i][jj] == '.' || now.map[i][jj] == 'O') goto checkleft;
             }
-            return false;
+            flag = false;
         }
         checkleft:
         if(now.map[i][j-1] == '#') {
@@ -112,12 +172,12 @@ bool checkmapvalid(const State& now)
             for(int ii=0; ii<now.map.size(); ii++) {
                 if(now.map[ii][j-1] != '#') goto checkright;
             }
-            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') return false;
-            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') return false;
+            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') flag = false;
+            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') flag = false;
             for(int ii=0; ii<now.map.size(); ii++) {
                 if(now.map[ii][j] == '.' || now.map[ii][j] == 'O') goto checkright;
             }
-            return false;
+            flag = false;
         }
         checkright:
         if(now.map[i][j+1] == '#') {
@@ -125,19 +185,19 @@ bool checkmapvalid(const State& now)
             for(int ii=0; ii<now.map.size(); ii++) {
                 if(now.map[ii][j+1] != '#') goto checknext;
             }
-            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') return false;
-            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') return false;
+            if(now.map[i-1][j] == 'x' || now.map[i-1][j] == 'X') flag = false;
+            if(now.map[i+1][j] == 'x' || now.map[i+1][j] == 'X') flag = false;
             for(int ii=0; ii<now.map.size(); ii++) {
                 if(now.map[ii][j] == '.' || now.map[ii][j] == 'O') goto checknext;
             }
-            return false;
+            flag = false;
         }
         checknext:
-        if(horizon > 0 && vertical > 0) return false;
+        if(horizon > 0 && vertical > 0) flag = false;
         continue;
     }
     //cout << "true\n";
-    return true;
+    return flag;
 }
 
 bool checkmovevalid(const State& now, const char dir)
@@ -526,7 +586,11 @@ void findans()
         // bfsqueue.pop_front();
     } while(hashtable.count(now.map) == 1);
     
-    hashtable.insert(now.map);
+    #pragma omp critical
+    {
+        hashtable.insert(now.map);
+    }
+    
     // cout << hashtable.size() << '\n';
 
     // print out the map
@@ -537,7 +601,11 @@ void findans()
 
     //printf("%s\n", now.moves.c_str());
     if(checkwin(now)) {
-        printf("%s\n", now.moves.c_str());
+        #pragma omp critical
+        {
+            ans = now.moves;    
+        }
+        
         bfsqueue.clear();
         nomovequeue.clear();
         return;
@@ -608,28 +676,40 @@ int main(int argc, char** argv)
     }
 
     // start parsing input
-    vector<string> map;
+    // vector<string> map;
     char ch;
     while((ch = fgetc(input)) != EOF) {
         string line;
+        string deadline;
         while(ch != '\n') {
             line += ch;
+            deadline += '0';
             ch = fgetc(input);
         }
-        map.push_back(line);
+        initmap.push_back(line);
+        deadmap.push_back(deadline);
     }
 
     // print out the map
     // for(auto line: map){
     //     cout << line << '\n';
     // }
+    State init(initmap);
+    builddeadmap(init);
 
-    bfsqueue.push(State(map));
+    // print out the map
+    // for(auto line: deadmap){
+    //     cout << line << '\n';
+    // }
+
+    bfsqueue.push(init);
     // cout << bfsqueue.front().pos.first << ' ' << bfsqueue.front().pos.second << '\n';
-    
+    #pragma omp parallel
     while(!bfsqueue.empty() || !nomovequeue.empty()) {
         findans();
     }
+
+    printf("%s\n", ans.c_str());
 
     return 0;
 }
