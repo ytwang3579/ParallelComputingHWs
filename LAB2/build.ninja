@@ -1,0 +1,4 @@
+rule mpicxx
+  command = mpicxx -std=c++17 -O3 $in -o $out
+
+build lab2: mpicxx lab2.cc
