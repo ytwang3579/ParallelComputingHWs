@@ -1,0 +1,12 @@
+CXX = mpicxx
+CPPFLAGS = -I/home/ipc20/ta/lodepng
+LDFLAGS = -fopenmp -lm 
+CXXFLAGS = -std=c++2a -Ofast -march=native
+
+rule cxx
+  command = $CXX $CXXFLAGS $CPPFLAGS $LDFLAGS $in -o $out
+
+build lodepng.o: cxx /home/ipc20/ta/lodepng/lodepng.cpp
+    CXXFLAGS = $CXXFLAGS -c
+    
+build hw2: cxx hw2.cc lodepng.o
