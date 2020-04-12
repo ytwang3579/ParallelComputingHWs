@@ -27,7 +27,7 @@ typedef glm::dmat3 mat3;  // 3x3 matrix
 
 unsigned int num_threads;  // number of thread
 int num_processes; // number of process
-unsigned int num_tasks;    // number of task of each process
+// unsigned int num_tasks;    // number of task of each process
 int process_id;
 unsigned int width;        // image width
 unsigned int height;       // image height
@@ -35,16 +35,16 @@ vec2 iResolution;          // just for convenience of calculation
 
 #define AA 2  // anti-aliasing
 
-#define power 8.0           // the power of the mandelbulb equation
-#define md_iter 24.          // the iteration count of the mandelbulb
-#define ray_step 10000.      // maximum step of ray marching
-#define shadow_step 1500.   // maximum step of shadow casting
+#define power 8           // the power of the mandelbulb equation
+#define md_iter 24          // the iteration count of the mandelbulb
+#define ray_step 10000      // maximum step of ray marching
+#define shadow_step 1500   // maximum step of shadow casting
 #define step_limiter 0.2    // the limit of each step length
 #define ray_multiplier 0.1  // prevent over-shooting, lower value for higher quality
-#define bailout 2.       // escape radius
+#define bailout 2       // escape radius
 #define eps 0.0005          // precision
 #define FOV 1.5            // fov ~66deg
-#define far_plane 100.      // scene depth
+#define far_plane 100      // scene depth
 
 vec3 camera_pos;  // camera position in 3D space (x, y, z)
 vec3 target_pos;  // target position in 3D space (x, y, z)
@@ -65,7 +65,7 @@ void write_png(const char* filename) {
 // p: current position
 // trap: for orbit trap coloring : https://en.wikipedia.org/wiki/Orbit_trap
 // return: minimum distance to the mandelbulb surface
-double md(vec3 p, double& trap) {
+double md(const vec3& p, double& trap) {
     vec3 v = p;
     double dr = 1.;             // |v'|
     double r = glm::length(v);  // r = |v| = sqrt(x^2 + y^2 + z^2)
@@ -89,7 +89,7 @@ double md(vec3 p, double& trap) {
 }
 
 // scene mapping
-double map(vec3 p, double& trap, int& ID) {
+double map(const vec3& p, double& trap, int& ID) {
     vec2 rt = vec2(cos(pi / 2.), sin(pi / 2.));
     vec3 rp = mat3(1., 0., 0., 0., rt.x, -rt.y, 0., rt.y, rt.x) *
               p;  // rotation matrix, rotate 90 deg (pi/2) along the X-axis
@@ -100,7 +100,7 @@ double map(vec3 p, double& trap, int& ID) {
 // dummy function
 // becase we dont need to know the ordit trap or the object ID when we are calculating the surface
 // normal
-double map(vec3 p) {
+double map(const vec3& p) {
     double dmy;  // dummy
     int dmy2;    // dummy2
     return map(p, dmy, dmy2);
@@ -108,14 +108,14 @@ double map(vec3 p) {
 
 // simple palette function (borrowed from Inigo Quilez)
 // see: https://www.shadertoy.com/view/ll2GD3
-vec3 pal(double t, vec3 a, vec3 b, vec3 c, vec3 d) {
+vec3 pal(double t, const vec3& a, const vec3& b, const vec3& c, const vec3& d) {
     return a + b * glm::cos(2. * pi * (c * t + d));
 }
 
 // second march: cast shadow
 // also borrowed from Inigo Quilez
 // see: http://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
-double softshadow(vec3 ro, vec3 rd, double k) {
+double softshadow(const vec3& ro, const vec3& rd, double k) {
     double res = 1.0;
     double t = 0.;  // total distance
     std::atomic<bool> flag = true;
@@ -141,7 +141,7 @@ double softshadow(vec3 ro, vec3 rd, double k) {
 }
 
 // use gradient to calc surface normal
-vec3 calcNor(vec3 p) {
+vec3 calcNor(const vec3& p) {
     vec2 e = vec2(eps, 0.);
     return normalize(vec3(map(p + e.xyy()) - map(p - e.xyy()),  // dx
         map(p + e.yxy()) - map(p - e.yxy()),                    // dy
@@ -150,7 +150,7 @@ vec3 calcNor(vec3 p) {
 }
 
 // first march: find object's surface
-double trace(vec3 ro, vec3 rd, double& trap, int& ID) {
+double trace(const vec3& ro, const vec3& rd, double& trap, int& ID) {
     double t = 0;    // total distance
     double len = 0;  // current distance
 
@@ -181,6 +181,7 @@ int main(int argc, char** argv) {
     // width height: image size
     // filename: filename
     assert(argc == 11);
+    //printf("%d %d\n", sizeof(vec3*), sizeof(double*));
 
     //---init arguments
     num_threads = atoi(argv[1]);
@@ -193,8 +194,8 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
 
-    double total_pixel = width * height;
-    unsigned int current_pixel = 0;
+    // double total_pixel = width * height;
+    // unsigned int current_pixel = 0;
 
     iResolution = vec2(width, height);
     //---
@@ -214,11 +215,11 @@ int main(int argc, char** argv) {
     //---start rendering
     
     
-    num_tasks = height / num_processes;
-    // printf("%d %d\n", num_tasks, process_id);
-    current_pixel = process_id * num_tasks;
-    int end_task = current_pixel + num_tasks;
-    if(process_id+1 == num_processes) end_task = height;
+    // num_tasks = height / num_processes;
+    // // printf("%d %d\n", num_tasks, process_id);
+    // current_pixel = process_id * num_tasks;
+    // int end_task = current_pixel + num_tasks;
+    // if(process_id+1 == num_processes) end_task = height;
 
     // printf("%d: %d %d\n", process_id, current_pixel, end_task);
     #pragma omp parallel for schedule(dynamic) collapse(2)
