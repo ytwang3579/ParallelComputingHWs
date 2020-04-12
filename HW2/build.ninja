@@ -1,7 +1,7 @@
 CXX = mpicxx
 CPPFLAGS = -I/home/ipc20/ta/lodepng
 LDFLAGS = -fopenmp -lm 
-CXXFLAGS = -std=c++2a -Ofast -march=native
+CXXFLAGS = -std=c++2a -Ofast
 
 rule cxx
   command = $CXX $CXXFLAGS $CPPFLAGS $LDFLAGS $in -o $out

@@ -33,18 +33,18 @@ unsigned int width;        // image width
 unsigned int height;       // image height
 vec2 iResolution;          // just for convenience of calculation
 
-int AA = 2;  // anti-aliasing
+#define AA 2  // anti-aliasing
 
-double power = 8.0;           // the power of the mandelbulb equation
-double md_iter = 24;          // the iteration count of the mandelbulb
-double ray_step = 10000;      // maximum step of ray marching
-double shadow_step = 1500;    // maximum step of shadow casting
-double step_limiter = 0.2;    // the limit of each step length
-double ray_multiplier = 0.1;  // prevent over-shooting, lower value for higher quality
-double bailout = 2.0;         // escape radius
-double eps = 0.0005;          // precision
-double FOV = 1.5;             // fov ~66deg
-double far_plane = 100.;      // scene depth
+#define power 8.0           // the power of the mandelbulb equation
+#define md_iter 24.          // the iteration count of the mandelbulb
+#define ray_step 10000.      // maximum step of ray marching
+#define shadow_step 1500.   // maximum step of shadow casting
+#define step_limiter 0.2    // the limit of each step length
+#define ray_multiplier 0.1  // prevent over-shooting, lower value for higher quality
+#define bailout 2.       // escape radius
+#define eps 0.0005          // precision
+#define FOV 1.5            // fov ~66deg
+#define far_plane 100.      // scene depth
 
 vec3 camera_pos;  // camera position in 3D space (x, y, z)
 vec3 target_pos;  // target position in 3D space (x, y, z)
@@ -55,7 +55,7 @@ unsigned char** image;     // 2D image
 
 // save raw_image to PNG file
 void write_png(const char* filename) {
-    unsigned error = lodepng_encode32_file(filename, raw_image, width, height);
+    unsigned error = lodepng_encode32_file(filename, output_image, width, height);
 
     if (error) printf("png error %u: %s\n", error, lodepng_error_text(error));
 }
@@ -123,18 +123,18 @@ double softshadow(vec3 ro, vec3 rd, double k) {
     
     #pragma omp parallel reduction(+:t,i)
     {
-    while(flag && i<shadow_step) {
-        if(res < 0.02) {
-            flag = false;
-            continue;
+        while(flag && i<shadow_step) {
+            if(res < 0.02) {
+                flag = false;
+                break;
+            }
+            double h = map(ro + rd * t);
+            res = glm::min(
+                res, k * h / t);  // closer to the objects, k*h/t terms will produce darker shadow
+            
+            t += glm::clamp(h, .001, step_limiter);  // move ray
+            i++;
         }
-        double h = map(ro + rd * t);
-        res = glm::min(
-            res, k * h / t);  // closer to the objects, k*h/t terms will produce darker shadow
-        
-        t += glm::clamp(h, .001, step_limiter);  // move ray
-        i++;
-    }
     }
     if (res < 0.02) return 0.02;
     return glm::clamp(res, .02, 1.);
@@ -158,16 +158,16 @@ double trace(vec3 ro, vec3 rd, double& trap, int& ID) {
     int i = 0;
 
     #pragma omp parallel reduction(+:t,i)
-    while(flag && i < ray_step) {
-        len = map(ro + rd * t, trap,
-            ID);  // get minimum distance from current ray position to the object's surface
-        if (glm::abs(len) < eps || t > far_plane) {
-            flag = false;
-            break;
+        while(flag && i < ray_step) {
+            len = map(ro + rd * t, trap,
+                ID);  // get minimum distance from current ray position to the object's surface
+            if (glm::abs(len) < eps || t > far_plane) {
+                flag = false;
+                break;
+            }
+            t += len * ray_multiplier;
+            i++;
         }
-        t += len * ray_multiplier;
-        i++;
-    }
     return t < far_plane
                ? t
                : -1.;  // if exceeds the far plane then return -1 which means the ray missed a shot
@@ -189,6 +189,9 @@ int main(int argc, char** argv) {
     width = atoi(argv[8]);
     height = atoi(argv[9]);
 
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
 
     double total_pixel = width * height;
     unsigned int current_pixel = 0;
@@ -200,6 +203,7 @@ int main(int argc, char** argv) {
     //---create image
     raw_image = new unsigned char[width * height * 4];
     image = new unsigned char*[height];
+    if(process_id == 0) output_image = new unsigned char[width * height * 4];
     
     #pragma omp parallel for simd num_threads(num_threads)
     for (int i = 0; i < height; ++i) {
@@ -208,9 +212,7 @@ int main(int argc, char** argv) {
     //---
 
     //---start rendering
-    MPI_Init(NULL, NULL);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
+    
     
     num_tasks = height / num_processes;
     // printf("%d %d\n", num_tasks, process_id);
@@ -315,13 +317,12 @@ int main(int argc, char** argv) {
         //current_pixel++;
     }
     //---
-    if(process_id == 0) output_image = new unsigned char[width * height * 4];
     MPI_Reduce(raw_image, output_image, 4*width*height, MPI_UNSIGNED_CHAR, MPI_SUM, 0,
            MPI_COMM_WORLD);
     
     
 
-    if(process_id == 0) raw_image = output_image;
+    //if(process_id == 0) raw_image = output_image;
     //---saving image
     if(process_id == 0) write_png(argv[10]);
 
