@@ -35,16 +35,16 @@ vec2 iResolution;          // just for convenience of calculation
 
 #define AA 2  // anti-aliasing
 
-#define power 8           // the power of the mandelbulb equation
-#define md_iter 24          // the iteration count of the mandelbulb
-#define ray_step 10000      // maximum step of ray marching
-#define shadow_step 1500   // maximum step of shadow casting
+#define power 8.0           // the power of the mandelbulb equation
+#define md_iter 24.          // the iteration count of the mandelbulb
+#define ray_step 10000.      // maximum step of ray marching
+#define shadow_step 1500.   // maximum step of shadow casting
 #define step_limiter 0.2    // the limit of each step length
 #define ray_multiplier 0.1  // prevent over-shooting, lower value for higher quality
-#define bailout 2       // escape radius
+#define bailout 2.       // escape radius
 #define eps 0.0005          // precision
 #define FOV 1.5            // fov ~66deg
-#define far_plane 100      // scene depth
+#define far_plane 100.      // scene depth
 
 vec3 camera_pos;  // camera position in 3D space (x, y, z)
 vec3 target_pos;  // target position in 3D space (x, y, z)
@@ -121,7 +121,7 @@ double softshadow(const vec3& ro, const vec3& rd, double k) {
     std::atomic<bool> flag = true;
     int i = 0;
     
-    #pragma omp parallel reduction(+:t,i)
+    #pragma omp parallel reduction(+:t)
     {
         while(flag && i<shadow_step) {
             if(res < 0.02) {
@@ -157,7 +157,8 @@ double trace(const vec3& ro, const vec3& rd, double& trap, int& ID) {
     std::atomic<bool> flag = true;
     int i = 0;
 
-    #pragma omp parallel reduction(+:t,i)
+    #pragma omp parallel reduction(+:t)
+    {
         while(flag && i < ray_step) {
             len = map(ro + rd * t, trap,
                 ID);  // get minimum distance from current ray position to the object's surface
@@ -168,6 +169,7 @@ double trace(const vec3& ro, const vec3& rd, double& trap, int& ID) {
             t += len * ray_multiplier;
             i++;
         }
+    }
     return t < far_plane
                ? t
                : -1.;  // if exceeds the far plane then return -1 which means the ray missed a shot
