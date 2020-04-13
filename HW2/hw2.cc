@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
     image = new unsigned char*[height];
     if(process_id == 0) output_image = new unsigned char[width * height * 4];
     
-    #pragma omp parallel for simd num_threads(num_threads)
+    #pragma omp parallel for simd num_threads(num_threads) schedule(static)
     for (int i = 0; i < height; ++i) {
         image[i] = raw_image + i * width * 4;
     }
@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
             vec4 fcol(0.);  // final color (RGBA 0 ~ 1)
 
             // anti aliasing
-            #pragma omp parallel for collapse(2) num_threads(4)
+            #pragma omp parallel for collapse(2)
             for (int m = 0; m < AA; ++m) {
                 for (int n = 0; n < AA; ++n) {
                     vec2 p = vec2(j, i) + vec2(m, n) / (double)AA;
