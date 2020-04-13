@@ -25,20 +25,20 @@ typedef glm::dvec3 vec3;  // 3D vector (x, y, z) or (r, g, b)
 typedef glm::dvec4 vec4;  // 4D vector (x, y, z, w)
 typedef glm::dmat3 mat3;  // 3x3 matrix
 
-unsigned int num_threads;  // number of thread
+int num_threads;  // number of thread
 int num_processes; // number of process
 // unsigned int num_tasks;    // number of task of each process
 int process_id;
-unsigned int width;        // image width
-unsigned int height;       // image height
+int width;        // image width
+int height;       // image height
 vec2 iResolution;          // just for convenience of calculation
 
 #define AA 2  // anti-aliasing
 
 #define power 8.0           // the power of the mandelbulb equation
-#define md_iter 24.          // the iteration count of the mandelbulb
-#define ray_step 10000.      // maximum step of ray marching
-#define shadow_step 1500.   // maximum step of shadow casting
+#define md_iter 24          // the iteration count of the mandelbulb
+#define ray_step 10000      // maximum step of ray marching
+#define shadow_step 1500   // maximum step of shadow casting
 #define step_limiter 0.2    // the limit of each step length
 #define ray_multiplier 0.1  // prevent over-shooting, lower value for higher quality
 #define bailout 2.       // escape radius
