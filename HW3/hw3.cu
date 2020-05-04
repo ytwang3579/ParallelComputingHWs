@@ -1,13 +1,8 @@
 #include <png.h>
 #include <zlib.h>
-#include <stdio.h>
-
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
-
-using std::cout;
 
 #define MASK_N 2
 #define MASK_X 5
@@ -197,7 +192,7 @@ int main(int argc, char** argv) {
 
     // cout << Block_Per_Grid*Thread_Per_Block << '\n';
 
-    sobel<<<1280,512>>>(src_img_cuda, dst_img_cuda, height, width, channels);
+    sobel<<<640,512>>>(src_img_cuda, dst_img_cuda, height, width, channels);
 
     cudaMemcpy(dst_img, dst_img_cuda, img_size, cudaMemcpyDeviceToHost);
 
