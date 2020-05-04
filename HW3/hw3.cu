@@ -17,7 +17,7 @@ using std::cout;
 #define adjustX 1
 #define adjustY 1
 #define xBound 2
-#define yBound = MASK_Y / 2;
+#define yBound 2
 
 // clang-format off
 __constant__ int mask[MASK_N][MASK_X][MASK_Y] = {
