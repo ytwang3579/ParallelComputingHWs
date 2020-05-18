@@ -197,37 +197,8 @@ __global__ void solve(char* version,
 
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     int gridStride = gridDim.x * blockDim.x;
-    // if(idx == 0) printf("There are totally %d workers.\n", gridStride);
-
-    // for(int i=idx; i<tx; i+=gridStride) {
-    //     merkle_branch[i] = raw_merkle_branch + i * 65;
-    //     merkle_branch[i][64] = '\0';
-    // }
-
-    // __syncthreads();
-
-    // **** calculate merkle root ****
-
-    
-    // if(threadIdx.x == 0) {
-        
-    // }
-
-    // __syncthreads();
-
 
     // **** solve block ****
-    // if(idx == 0) {
-    //     printf("Block info (big): \n");
-    //     printf("  version:  %s\n", version);
-    //     printf("  pervhash: %s\n", prevhash);
-    //     printf("  merkleroot: "); print_hex_inverse(merkle_root, 32); printf("\n");
-    //     printf("  nbits:    %s\n", nbits);
-    //     printf("  ntime:    %s\n", ntime);
-    //     printf("  nonce:    ???\n\n");
-    // }
-    
-
     HashBlock block;
 
     // convert to byte array in little-endian
@@ -237,16 +208,6 @@ __global__ void solve(char* version,
     convert_string_to_little_endian_bytes((unsigned char *)&block.nbits,   nbits,     8, idx);
     convert_string_to_little_endian_bytes((unsigned char *)&block.ntime,   ntime,     8, idx);
     block.nonce = 0;
-
-    // if(idx == 0) {
-    //     printf("Block info (big): \n");
-    //     printf("  version:  %x\n", block.version);
-    //     printf("  pervhash: %x\n", block.prevhash);
-    //     printf("  merkleroot: "); print_hex_inverse(block.merkle_root, 32); printf("\n");
-    //     printf("  nbits:    %x\n", block.nbits);
-    //     printf("  ntime:    %x\n", block.ntime);
-    //     printf("  nonce:    ???\n\n");
-    // }
     
     
     // ********** calculate target value *********
@@ -264,13 +225,7 @@ __global__ void solve(char* version,
     target_hex[sb + 1] = (mant >> (8-rb));
     target_hex[sb + 2] = (mant >> (16-rb));
     target_hex[sb + 3] = (mant >> (24-rb));
-    
-    // if(idx == 0) {
-    //     printf("Target value (big): ");
-    //     print_hex_inverse(target_hex, 32);
-    //     printf("\n"); 
-    // }
-    
+
 
 
     // ********** find nonce **************
@@ -284,39 +239,13 @@ __global__ void solve(char* version,
         //sha256d
         double_sha256(&sha256_ctx, (unsigned char*)&block, sizeof(block));
 
-        if(block.nonce % 1000000 == 0)
-        {
-            // printf("hash #%10u (big): ", block.nonce);
-            // print_hex_inverse(sha256_ctx.b, 32);
-            // printf("\n");
-        }
-
         if(little_endian_bit_comparison(sha256_ctx.b, target_hex, 32) < 0)  // sha256_ctx < target_hex
         {
-            // printf("Found Solution!!\n");
-            // printf("hash #%10u (big): ", block.nonce);
-            // print_hex_inverse(sha256_ctx.b, 32);
-            // printf("\n\n");
             ans = block.nonce;
             flag = false;
         }
 
     }
-
-
-    // print result
-
-    // //little-endian
-    // printf("hash(little): ");
-    // print_hex(sha256_ctx.b, 32);
-    // printf("\n");
-
-    // //big-endian
-    // printf("hash(big):    ");
-    // print_hex_inverse(sha256_ctx.b, 32);
-    // printf("\n\n");
-
-
 
 }
 
@@ -330,18 +259,6 @@ int main(int argc, char **argv)
     FILE *fout = fopen(argv[2], "w");
 
     int totalblock;
-
-    // fprintf(stderr, "Getting device props...\n");
-    int deviceID;
-    cudaGetDevice(&deviceID);
-
-    cudaDeviceProp props;
-    cudaGetDeviceProperties(&props, deviceID);
-
-    int Block_Per_Grid = 160;
-    int Thread_Per_Block = 256;
-    fprintf(stderr, "Block: %d Thread: %d\n", Block_Per_Grid, Thread_Per_Block);
-
 
     fscanf(fin, "%d\n", &totalblock);
     fprintf(fout, "%d\n", totalblock);
@@ -386,7 +303,6 @@ int main(int argc, char **argv)
         cudaMalloc(&raw_merkle_branch_cuda, sizeof(char) * tx*65);
         cudaMalloc(&merkle_branch_cuda, sizeof(char*) * tx);
         
-        // fprintf(stderr, "Building environment for merkle root...\n");
         
         #pragma omp parallel for scheduled(static)
         for(int i=0;i<tx;++i)
@@ -396,10 +312,6 @@ int main(int argc, char **argv)
         }
         for(int i=0;i<tx;++i) getline(merkle_branch[i], 65, fin);
 
-        
-        // cudaMemcpyAsync(raw_merkle_branch_cuda, raw_merkle_branch, tx*65, cudaMemcpyHostToDevice);
-        
-        // fprintf(stderr, "Calculate merkle root\n");
         unsigned char *merkle_root, *merkle_root_cuda;
         cudaMallocHost(&merkle_root, 32*sizeof(unsigned char));
         cudaMalloc(&merkle_root_cuda, 32*sizeof(unsigned char));
@@ -407,20 +319,11 @@ int main(int argc, char **argv)
         calc_merkle_root(merkle_root, tx, merkle_branch);
         cudaMemcpyAsync(merkle_root_cuda, merkle_root, 32*sizeof(unsigned char), cudaMemcpyHostToDevice);
 
-        // printf("merkle root(little): ");
-        // print_hex(merkle_root, 32);
-        // printf("\n");
-
-        // printf("merkle root(big):    ");
-        // print_hex_inverse(merkle_root, 32);
-        // printf("\n");
-
-        // fprintf(stderr, "Entering solve...\n");
         unsigned int *ans, *ans_cuda;
         
         cudaMalloc(&ans_cuda, sizeof(unsigned int));
 
-        solve<<<Block_Per_Grid, Thread_Per_Block>>>(version_cuda, prevhash_cuda, ntime_cuda, nbits_cuda,
+        solve<<<160, 256>>>(version_cuda, prevhash_cuda, ntime_cuda, nbits_cuda,
             merkle_root_cuda, *tx_cuda, *ans_cuda);
 
         cudaMallocHost(&ans, sizeof(unsigned int));
@@ -432,8 +335,6 @@ int main(int argc, char **argv)
             fprintf(fout, "%02x", ((unsigned char*)ans)[i]);
         }
         fprintf(fout, "\n"); 
-
-        // fprintf(stderr, "Finish solve...\n");
 
         clearflag<<<1,1>>>();
         cudaDeviceSynchronize();
