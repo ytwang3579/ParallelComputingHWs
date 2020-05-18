@@ -20,7 +20,7 @@
 extern "C"{
 #endif  //__cplusplus
 
-static const WORD k[64] = {
+__constant__ static const WORD k[64] = {
 	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
 	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
 	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
@@ -31,7 +31,7 @@ static const WORD k[64] = {
 	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 };
 
-void sha256_transform(SHA256 *ctx, const BYTE *msg)
+__host__ __device__  void sha256_transform(SHA256 *ctx, const BYTE *msg)
 {
 	WORD a, b, c, d, e, f, g, h;
 	WORD i, j;
@@ -95,7 +95,7 @@ void sha256_transform(SHA256 *ctx, const BYTE *msg)
 	
 }
 
-void sha256(SHA256 *ctx, const BYTE *msg, size_t len)
+__host__ __device__  void sha256(SHA256 *ctx, const BYTE *msg, size_t len)
 {
 	// Initialize hash values:
 	// (first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19):
@@ -164,58 +164,58 @@ void sha256(SHA256 *ctx, const BYTE *msg, size_t len)
 	#define print_hash(x) printf("sha256 hash: "); for(int i=0;i<32;++i)printf("%02X", (x).b[i]);
 	#define print_msg(x) printf("%s", ((x) ? "Pass":"Failed"))
 
-int main(int argc, char **argv)
-{
-	SHA256 ctx;
+// int main(int argc, char **argv)
+// {
+// 	SHA256 ctx;
 	
-	// ------------------ Stage 1: abc
-	printf("------- Stage 1 : abc -------\n");
-	BYTE abc[] = "abc";
-	BYTE abcans[] = {0xBA, 0x78, 0x16, 0xBF, 0x8F, 0x01, 0xCF, 0xEA, 
-					 0x41, 0x41, 0x40, 0xDE, 0x5D, 0xAE, 0x22, 0x23, 
-					 0xB0, 0x03, 0x61, 0xA3, 0x96, 0x17, 0x7A, 0x9C, 
-					 0xB4, 0x10, 0xFF, 0x61, 0xF2, 0x00, 0x15, 0xAD};
-	size_t abclen = sizeof(abc) - 1;
-	sha256(&ctx, abc, abclen);
-	print_hash(ctx);
-	printf("\nResult: ");
-	print_msg(!memcmp(abcans, ctx.b, 32));
-	printf("\n\n");
+// 	// ------------------ Stage 1: abc
+// 	printf("------- Stage 1 : abc -------\n");
+// 	BYTE abc[] = "abc";
+// 	BYTE abcans[] = {0xBA, 0x78, 0x16, 0xBF, 0x8F, 0x01, 0xCF, 0xEA, 
+// 					 0x41, 0x41, 0x40, 0xDE, 0x5D, 0xAE, 0x22, 0x23, 
+// 					 0xB0, 0x03, 0x61, 0xA3, 0x96, 0x17, 0x7A, 0x9C, 
+// 					 0xB4, 0x10, 0xFF, 0x61, 0xF2, 0x00, 0x15, 0xAD};
+// 	size_t abclen = sizeof(abc) - 1;
+// 	sha256(&ctx, abc, abclen);
+// 	print_hash(ctx);
+// 	printf("\nResult: ");
+// 	print_msg(!memcmp(abcans, ctx.b, 32));
+// 	printf("\n\n");
 	
-	// ------------------ Stage 2: len55
-	printf("------ Stage 2 : len55 ------\n");
-	BYTE len55[] = "1234567890123456789012345678901234567890123456789012345";
-	BYTE len55ans[] = {0x03, 0xC3, 0xA7, 0x0E, 0x99, 0xED, 0x5E, 0xEC, 
-					   0xCD, 0x80, 0xF7, 0x37, 0x71, 0xFC, 0xF1, 0xEC, 
-					   0xE6, 0x43, 0xD9, 0x39, 0xD9, 0xEC, 0xC7, 0x6F, 
-					   0x25, 0x54, 0x4B, 0x02, 0x33, 0xF7, 0x08, 0xE9};
-	size_t len55len = sizeof(len55) - 1;
-	sha256(&ctx, len55, len55len);
-	print_hash(ctx);
-	printf("\nResult: ");
-	print_msg(!memcmp(len55ans, ctx.b, 32));
-	printf("\n\n");
+// 	// ------------------ Stage 2: len55
+// 	printf("------ Stage 2 : len55 ------\n");
+// 	BYTE len55[] = "1234567890123456789012345678901234567890123456789012345";
+// 	BYTE len55ans[] = {0x03, 0xC3, 0xA7, 0x0E, 0x99, 0xED, 0x5E, 0xEC, 
+// 					   0xCD, 0x80, 0xF7, 0x37, 0x71, 0xFC, 0xF1, 0xEC, 
+// 					   0xE6, 0x43, 0xD9, 0x39, 0xD9, 0xEC, 0xC7, 0x6F, 
+// 					   0x25, 0x54, 0x4B, 0x02, 0x33, 0xF7, 0x08, 0xE9};
+// 	size_t len55len = sizeof(len55) - 1;
+// 	sha256(&ctx, len55, len55len);
+// 	print_hash(ctx);
+// 	printf("\nResult: ");
+// 	print_msg(!memcmp(len55ans, ctx.b, 32));
+// 	printf("\n\n");
 	
-	// ------------------ Stage 3: len290
-	printf("----- Stage 3 : len290 ------\n");
-	BYTE len290[] = "ads;flkjas;dlkfjads;flkjads;flkafdlkjhfdalkjgadslfkjhadsjhfveroi"
-					"uhwerpiuhwerptoiuywerptoiuywterypoihslgkjhdxzflgknbzsfdlkgjhsdfp"
-					"gikjhwepgoiuhywertpiuywerptiuywrtoiuhwserlkjhsfdlgkjbsfd,nkmbxcv"
-					".bkmnxflkjbnfdslgkjhsgpoiuhserpiuywerpituywetrpoiuhywerlkjbsfd,g"
-					"nkbxsflkdjbsdflkjhsgfdluhsdgliuher";
-	BYTE len290ans[] = {0xBD, 0xB5, 0xD4, 0xC1, 0xFB, 0x45, 0x1A, 0xD2, 
-						0xFC, 0x8E, 0x62, 0x26, 0xF9, 0x5C, 0x6B, 0x58, 
-						0x31, 0x53, 0x90, 0x1B, 0xE3, 0x74, 0xC2, 0x60, 
-						0xC8, 0xA7, 0x46, 0x09, 0xC6, 0x89, 0x24, 0x60};
-	size_t len290len = sizeof(len290) - 1;
-	sha256(&ctx, len290, len290len);
-	print_hash(ctx);
-	printf("\nResult: ");
-	print_msg(!memcmp(len290ans, ctx.b, 32));
-	printf("\n\n");
+// 	// ------------------ Stage 3: len290
+// 	printf("----- Stage 3 : len290 ------\n");
+// 	BYTE len290[] = "ads;flkjas;dlkfjads;flkjads;flkafdlkjhfdalkjgadslfkjhadsjhfveroi"
+// 					"uhwerpiuhwerptoiuywerptoiuywterypoihslgkjhdxzflgknbzsfdlkgjhsdfp"
+// 					"gikjhwepgoiuhywertpiuywerptiuywrtoiuhwserlkjhsfdlgkjbsfd,nkmbxcv"
+// 					".bkmnxflkjbnfdslgkjhsgpoiuhserpiuywerpituywetrpoiuhywerlkjbsfd,g"
+// 					"nkbxsflkdjbsdflkjhsgfdluhsdgliuher";
+// 	BYTE len290ans[] = {0xBD, 0xB5, 0xD4, 0xC1, 0xFB, 0x45, 0x1A, 0xD2, 
+// 						0xFC, 0x8E, 0x62, 0x26, 0xF9, 0x5C, 0x6B, 0x58, 
+// 						0x31, 0x53, 0x90, 0x1B, 0xE3, 0x74, 0xC2, 0x60, 
+// 						0xC8, 0xA7, 0x46, 0x09, 0xC6, 0x89, 0x24, 0x60};
+// 	size_t len290len = sizeof(len290) - 1;
+// 	sha256(&ctx, len290, len290len);
+// 	print_hash(ctx);
+// 	printf("\nResult: ");
+// 	print_msg(!memcmp(len290ans, ctx.b, 32));
+// 	printf("\n\n");
 	
-	return 0;
-}
+// 	return 0;
+// }
 #endif  //__SHA256_UNITTEST__
 
 #ifdef __cplusplus
