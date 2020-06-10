@@ -214,7 +214,7 @@ __global__ void HitTimeStep(int step, int planet, int asteroid, double* qx, doub
     if (dx * dx + dy * dy + dz * dz < PLANET_RADIUS * PLANET_RADIUS) {
         hit_time_step_cuda = step;
         *hit_time_step_msg = step;
-        printf("***%d\n", step);
+        //printf("***%d\n", step);
     }
 }
 
@@ -374,15 +374,15 @@ int main(int argc, char** argv) {
         HitTimeStep<<<1,1>>>(step, planet, asteroid, qx_cuda, qy_cuda, qz_cuda, hit_time_step_msg);
     }
 
-    cudaMemcpyAsync(hit_time_step, hit_time_step_msg, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hit_time_step, hit_time_step_msg, sizeof(int), cudaMemcpyDeviceToHost);
     // cudaError_t err = cudaGetLastError();
     // if(err != cudaSuccess) { printf("CUDA Error: %s\n", cudaGetErrorString(err));}
 
     // Problem 3
     // TODO
     // cudaSetDevice(1);
-    err = cudaGetLastError();
-    if(err != cudaSuccess) { printf("CUDA Error: %s\n", cudaGetErrorString(err));}
+    // err = cudaGetLastError();
+    // if(err != cudaSuccess) { printf("CUDA Error: %s\n", cudaGetErrorString(err));}
     int gravity_device_id = -999;
     double missile_cost = -999;
 
