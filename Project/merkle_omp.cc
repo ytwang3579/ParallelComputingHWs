@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
     FILE *fin = fopen(argv[1], "r");
     
     auto t_start = std::chrono::high_resolution_clock::now();
-    for(int it=0; it<=100; it++) {
+    for(int it=0; it<=1000; it++) {
         unsigned char url[56];
         unsigned char blockhash[65];
         unsigned char merkle_root_raw[65];
@@ -202,19 +202,19 @@ int main(int argc, char **argv) {
         double tti = std::chrono::duration<double, std::milli>(t_endi-t_starti).count();
         printf("Case #%d: %d txs %f ms\n", it+1, tx, tti);
 
-        printf("merkle root(big):    ");
-        print_hex_inverse(my_merkle_root, 32);
-        printf("\n");
+        // printf("merkle root(big):    ");
+        // print_hex_inverse(my_merkle_root, 32);
+        // printf("\n");
 
-        printf("merkle root(big):    ");
-        convert_string_to_little_endian_bytes(merkle_root, merkle_root_raw, 64);
-        print_hex_inverse(merkle_root, 32);
-        printf("\n");
+        // printf("merkle root(big):    ");
+        // convert_string_to_little_endian_bytes(merkle_root, merkle_root_raw, 64);
+        // print_hex_inverse(merkle_root, 32);
+        // printf("\n");
         
-        printf("%d\n", little_endian_bit_comparison(merkle_root, my_merkle_root, 32));
+        // printf("%d\n", little_endian_bit_comparison(merkle_root, my_merkle_root, 32));
     }
 
     auto t_end = std::chrono::high_resolution_clock::now();
     double tt = std::chrono::duration<double, std::milli>(t_end-t_start).count();
-    printf("Total execution time: %f ms\nAverage execution time: %f ms\n", tt, tt/101 );
+    printf("Total execution time: %f ms\nAverage execution time: %f ms\n", tt, tt/1001 );
 }

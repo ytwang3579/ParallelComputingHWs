@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     FILE *fin = fopen(argv[1], "r");
     
     auto t_start = std::chrono::high_resolution_clock::now();
-    for(int it=0; it<=100; it++) {
+    for(int it=0; it<=1000; it++) {
         unsigned char url[56];
         unsigned char blockhash[65];
         unsigned char merkle_root_raw[65];
@@ -210,5 +210,5 @@ int main(int argc, char **argv) {
 
     auto t_end = std::chrono::high_resolution_clock::now();
     double tt = std::chrono::duration<double, std::milli>(t_end-t_start).count();
-    printf("Total execution time: %f ms\nAverage execution time: %f ms\n", tt, tt/101 );
+    printf("Total execution time: %f ms\nAverage execution time: %f ms\n", tt, tt/1001 );
 }
