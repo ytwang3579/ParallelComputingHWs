@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
     while(1) {
         // cout << txid << ' ' << seq << '\n';
         // fscanf(txout, "%*[^\n]\n");
-        char txid[10], seq[10], nouse1[10], nouse2[10], nouse3[10], nouse4[10];
+        char txid[20], seq[20], nouse1[20], nouse2[20], nouse3[20], nouse4[20];
         if(fscanf(txout, "%s %s %s %s\n", txid, seq, nouse1, nouse2) != EOF) {
             string str = txid;
             str = str + "-" + seq;
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
     while(1) {
         // fscanf(txin, "%s %s", txid, seq);
         // fscanf(txin, "%*[^\n]\n");
-        char txid[10], seq[10], nouse1[10], nouse2[10], nouse3[10], nouse4[10];
+        char txid[20], seq[20], nouse1[20], nouse2[20], nouse3[20], nouse4[20];
         if(fscanf(txin, "%s %s %s %s %s %s\n", nouse1, nouse2, txid, seq, nouse3, nouse4) != EOF) {
             string str = txid;
             str = str + "-" + seq;
